@@ -1,55 +1,42 @@
-# roach_cipher.py
-# Reversible "inside-out" cipher (toy symmetric encryption)
-
+# roach_fernet.py
+from cryptography.fernet import Fernet
 import base64
 
-def invert_bits(data: bytes) -> bytes:
-    """Bitwise invert (flip 0<->1)."""
-    return bytes(b ^ 0xFF for b in data)
+def inside_out(data: bytes) -> bytes:
+    """Flip halves of the byte string."""
+    mid = len(data) // 2
+    return data[mid:] + data[:mid]
 
-def inside_out(text: str) -> str:
-    """Flip structure: reverse halves."""
-    mid = len(text) // 2
-    return text[mid:] + text[:mid]
-
-def xor_with_key(data: bytes, key: bytes) -> bytes:
-    """XOR data with repeating key bytes."""
-    key_len = len(key)
-    return bytes([b ^ key[i % key_len] for i, b in enumerate(data)])
-
-def roach_cipher(payload: str, key: str) -> str:
+def roach_encrypt(plaintext: str, key: bytes) -> str:
     """
-    Apply the reversible Roach cipher.
-    Run this function twice with the same key to get the original text back.
+    Encrypt plaintext using Fernet with an optional inside-out flip.
+    Output is base64 for readability.
     """
-    # Inside-out structural flip
-    flipped = inside_out(payload)
+    f = Fernet(key)
+    data = plaintext.encode("utf-8")
+    data = inside_out(data)      # optional Roach-style flip
+    encrypted = f.encrypt(data)
+    return base64.b64encode(encrypted).decode("utf-8")
 
-    # XOR + bitwise invert
-    data = flipped.encode("utf-8")
-    data = xor_with_key(data, key.encode("utf-8"))
-    data = invert_bits(data)
-
-    # Encode for readability
-    return base64.b64encode(data).decode("utf-8")
-
-def roach_decipher(payload_b64: str, key: str) -> str:
+def roach_decrypt(ciphertext_b64: str, key: bytes) -> str:
     """
-    Decrypt (identical to encryption reversed).
+    Decrypt ciphertext using Fernet and reverse the inside-out flip.
     """
-    data = base64.b64decode(payload_b64)
-    data = invert_bits(data)
-    data = xor_with_key(data, key.encode("utf-8"))
-    flipped = data.decode("utf-8")
-    return inside_out(flipped)  # re-flip halves
+    f = Fernet(key)
+    encrypted = base64.b64decode(ciphertext_b64)
+    data = f.decrypt(encrypted)
+    data = inside_out(data)      # reverse flip
+    return data.decode("utf-8")
 
 if __name__ == "__main__":
-    text = "the roach survives"
-    key = "roachkey"
+    # Generate a secure Fernet key (do this once and save it)
+    key = Fernet.generate_key()
 
-    encrypted = roach_cipher(text, key)
-    decrypted = roach_decipher(encrypted, key)
+    plaintext = "the roach survives"
+    encrypted = roach_encrypt(plaintext, key)
+    decrypted = roach_decrypt(encrypted, key)
 
-    print("Original :", text)
-    print("Encrypted:", encrypted)
-    print("Decrypted:", decrypted)
+    print("Key       :", key.decode())
+    print("Original  :", plaintext)
+    print("Encrypted :", encrypted)
+    print("Decrypted :", decrypted)
