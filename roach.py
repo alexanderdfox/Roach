@@ -1,4 +1,4 @@
-# insideout_fixed.py
+# roach.py
 # Fully self-reversible "inside-out" payload demo
 
 def invert_bits(data: bytes) -> bytes:
